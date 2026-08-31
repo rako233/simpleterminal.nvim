@@ -1,0 +1,130 @@
+*simpleterminal.txt*        A single floating terminal you can toggle
+
+==============================================================================
+CONTENTS                                            *simpleterminal-contents*
+
+    1. Introduction .......................... |simpleterminal-introduction|
+    2. Setup ................................. |simpleterminal-setup|
+    3. Configuration ......................... |simpleterminal-configuration|
+    4. Commands .............................. |simpleterminal-commands|
+    5. Lua API ............................... |simpleterminal-api|
+
+==============================================================================
+1. INTRODUCTION                                 *simpleterminal-introduction*
+
+simpleterminal gives you one floating terminal window and a way to toggle it
+in and out of view.
+
+The terminal buffer and its shell process are created on first use and then
+reused, so hiding the window and bringing it back drops you into the same
+session with its scrollback intact. Hiding the window does not stop the shell.
+
+Requires Neovim 0.10 or newer.
+
+==============================================================================
+2. SETUP                                               *simpleterminal-setup*
+
+Calling |simpleterminal.setup()| is optional; |:SimpleTerminal| works without
+it. Call it to change defaults or to have the plugin create a mapping: >lua
+
+    require("simpleterminal").setup({
+      keymap = "<leader>ut",
+    })
+<
+==============================================================================
+3. CONFIGURATION                               *simpleterminal-configuration*
+
+Defaults: >lua
+
+    {
+      width = 0.8,
+      height = 0.8,
+      border = "rounded",
+      title = nil,
+      cmd = nil,
+      start_insert = true,
+      close_on_exit = true,
+      keymap = false,
+    }
+<
+                                                  *simpleterminal-width*
+                                                  *simpleterminal-height*
+width, height ~
+        Size of the window. A value of 1 or less is a fraction of the screen;
+        a value above 1 is an absolute number of columns or rows. The result
+        is clamped to the screen, and the window is always centered.
+
+        The height budget excludes 'cmdheight'.
+
+                                                  *simpleterminal-border*
+border ~
+        Passed straight through to |nvim_open_win()|. Accepts "none",
+        "single", "double", "rounded", "solid", "shadow", or a list of
+        characters.
+
+                                                  *simpleterminal-title*
+title ~
+        Window title, or nil for none. Neovim requires a border for this, so
+        do not set a title together with border = "none".
+
+                                                  *simpleterminal-cmd*
+cmd ~
+        Command to run in the terminal. Defaults to nil, meaning 'shell'.
+
+                                                  *simpleterminal-start_insert*
+start_insert ~
+        Enter |Terminal-mode| when the window opens. With false you land in
+        normal mode and press `i` yourself.
+
+                                                  *simpleterminal-close_on_exit*
+close_on_exit ~
+        When the job exits (you type `exit`), close the window and discard the
+        buffer, so the next open starts a fresh shell. With false the buffer
+        is kept and shows the usual "[Process exited]" message.
+
+                                                  *simpleterminal-keymap*
+keymap ~
+        A normal-mode left-hand side that |simpleterminal.setup()| maps to
+        |simpleterminal.toggle()|, or false for no mapping. The plugin never
+        creates a mapping on its own; only setup() does, and only when this is
+        a string.
+
+==============================================================================
+4. COMMANDS                                         *simpleterminal-commands*
+
+                                                              *:SimpleTerminal*
+:SimpleTerminal [action]
+        Run `action`, one of `toggle` (the default), `open`, or `close`.
+        Completion offers the three names.
+
+==============================================================================
+5. LUA API                                               *simpleterminal-api*
+
+                                                    *simpleterminal.setup()*
+require("simpleterminal").setup({opts})
+        Merge {opts} over the defaults and, if |simpleterminal-keymap| is a
+        string, create that mapping. Safe to call more than once; the last
+        call wins.
+
+                                                     *simpleterminal.open()*
+require("simpleterminal").open()
+        Open the terminal, or focus it if it is already visible. Starts the
+        shell on first use. Returns the window handle.
+
+                                                    *simpleterminal.close()*
+require("simpleterminal").close()
+        Hide the window with |nvim_win_hide()|. The shell keeps running.
+
+                                                   *simpleterminal.toggle()*
+require("simpleterminal").toggle()
+        Open when hidden, close when visible.
+
+                                                  *simpleterminal.is_open()*
+require("simpleterminal").is_open()
+        Whether the window is currently visible.
+
+                                                    *simpleterminal.config*
+require("simpleterminal").config
+        The active configuration table, after any setup() merge.
+
+vim:tw=78:ts=8:noet:ft=help:norl:
