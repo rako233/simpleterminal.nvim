@@ -60,6 +60,33 @@ local function buf_is_valid()
   return state.buf ~= -1 and vim.api.nvim_buf_is_valid(state.buf)
 end
 
+---Ghostty 1.2+ accepts the keywords `cell-foreground` and `cell-background`
+---wherever a color is expected. Neovim has no equivalent, so resolve them
+---against the theme's own foreground and background.
+---@param value string?
+---@param colors simpleterminal.Colors
+---@return string?
+local function resolve_color(value, colors)
+  if value == "cell-foreground" then
+    return colors.foreground
+  end
+  if value == "cell-background" then
+    return colors.background
+  end
+  return value
+end
+
+---A bad color anywhere in a theme would otherwise abort `setup()`, taking the
+---rest of the user's config with it.
+---@param name string
+---@param opts vim.api.keyset.highlight
+local function set_hl(name, opts)
+  local ok, err = pcall(vim.api.nvim_set_hl, 0, name, opts)
+  if not ok then
+    vim.notify(("simpleterminal: %s: %s"):format(name, err), vim.log.levels.WARN)
+  end
+end
+
 ---Define the highlight groups the terminal window is mapped onto.
 ---Re-run on ColorScheme, which clears user-defined groups.
 local function define_highlights()
@@ -70,20 +97,24 @@ local function define_highlights()
 
   local bg, fg = colors.background, colors.foreground
 
-  vim.api.nvim_set_hl(0, "SimpleTerminalNormal", { fg = fg, bg = bg })
+  set_hl("SimpleTerminalNormal", { fg = fg, bg = bg })
   local dim = colors.palette and colors.palette[8]
-  vim.api.nvim_set_hl(0, "SimpleTerminalBorder", { fg = dim or fg, bg = bg })
-  vim.api.nvim_set_hl(0, "SimpleTerminalTitle", { fg = fg, bg = bg, bold = true })
+  set_hl("SimpleTerminalBorder", { fg = dim or fg, bg = bg })
+  set_hl("SimpleTerminalTitle", { fg = fg, bg = bg, bold = true })
 
   if colors.cursor then
-    -- Ghostty's cursor-text is the glyph under the block cursor.
-    vim.api.nvim_set_hl(0, "SimpleTerminalCursor", { fg = colors.cursor_text or bg, bg = colors.cursor })
+    -- Ghostty's cursor-text is the glyph under the block cursor. A theme that
+    -- leaves it unset gets the background, which reads as an inverted cursor.
+    set_hl("SimpleTerminalCursor", {
+      fg = resolve_color(colors.cursor_text, colors) or bg,
+      bg = resolve_color(colors.cursor, colors),
+    })
   end
 
   if colors.selection_background then
-    vim.api.nvim_set_hl(0, "SimpleTerminalSelection", {
-      fg = colors.selection_foreground,
-      bg = colors.selection_background,
+    set_hl("SimpleTerminalSelection", {
+      fg = resolve_color(colors.selection_foreground, colors),
+      bg = resolve_color(colors.selection_background, colors),
     })
   end
 end

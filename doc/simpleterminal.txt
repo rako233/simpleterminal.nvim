@@ -118,6 +118,12 @@ A full ghostty config works too; non-color keys are ignored. The keys read are
 `cursor-color`, `cursor-text`, `selection-background` and
 `selection-foreground`. Values may omit the leading "#".
 
+Ghostty's `cell-foreground` and `cell-background` keywords (Ghostty 1.2+) are
+resolved against the theme's own `foreground` and `background`, since Neovim
+has no equivalent. A color Neovim cannot parse is reported with |vim.notify()|
+and skipped, so one bad value cannot abort |simpleterminal.setup()| and take
+the rest of your config with it.
+
 `ghostty.load()` reports a missing file with |vim.notify()| and returns nil,
 which is the same as not setting `colors`. `ghostty.parse()` returns
 `nil, err` instead, for callers that want to handle it.

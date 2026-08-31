@@ -75,6 +75,10 @@ A full `ghostty/config` works too — non-color keys are ignored. The keys read
 are `palette = N=#rrggbb` (0-15), `background`, `foreground`, `cursor-color`,
 `cursor-text`, `selection-background` and `selection-foreground`.
 
+Ghostty's `cell-foreground` and `cell-background` keywords are resolved against
+the theme's own `foreground`/`background`. A color Neovim cannot parse warns and
+is skipped rather than aborting `setup()`.
+
 Or hand it a table directly:
 
 ```lua
