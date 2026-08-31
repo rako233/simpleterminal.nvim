@@ -16,14 +16,6 @@ With Neovim's built-in `vim.pack` (0.12+):
 vim.pack.add({ "https://github.com/rako233/simpleterminal.nvim" })
 require("simpleterminal").setup({ keymap = "<leader>ut" })
 ```
-
-While the repository is private, use the SSH remote instead, since `vim.pack`
-cannot authenticate over HTTPS:
-
-```lua
-vim.pack.add({ "git@github.com-rako:rako233/simpleterminal.nvim.git" })
-```
-
 From a local checkout, without a plugin manager:
 
 ```lua
