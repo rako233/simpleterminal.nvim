@@ -14,6 +14,7 @@ local M = {}
 ---@field cmd string? Command to run. Defaults to 'shell'.
 ---@field start_insert boolean Enter terminal-mode when the window opens.
 ---@field close_on_exit boolean Close the window when the job exits, so the next open starts fresh.
+---@field colors simpleterminal.Colors? Colors for this terminal only. nil follows the colorscheme.
 ---@field keymap string|false Normal-mode mapping for `toggle()`, created by `setup()`.
 
 ---@type simpleterminal.Config
@@ -25,6 +26,7 @@ local defaults = {
   cmd = nil,
   start_insert = true,
   close_on_exit = true,
+  colors = nil,
   keymap = false,
 }
 
@@ -58,6 +60,86 @@ local function buf_is_valid()
   return state.buf ~= -1 and vim.api.nvim_buf_is_valid(state.buf)
 end
 
+---Define the highlight groups the terminal window is mapped onto.
+---Re-run on ColorScheme, which clears user-defined groups.
+local function define_highlights()
+  local colors = M.config.colors
+  if not colors then
+    return
+  end
+
+  local bg, fg = colors.background, colors.foreground
+
+  vim.api.nvim_set_hl(0, "SimpleTerminalNormal", { fg = fg, bg = bg })
+  local dim = colors.palette and colors.palette[8]
+  vim.api.nvim_set_hl(0, "SimpleTerminalBorder", { fg = dim or fg, bg = bg })
+  vim.api.nvim_set_hl(0, "SimpleTerminalTitle", { fg = fg, bg = bg, bold = true })
+
+  if colors.cursor then
+    -- Ghostty's cursor-text is the glyph under the block cursor.
+    vim.api.nvim_set_hl(0, "SimpleTerminalCursor", { fg = colors.cursor_text or bg, bg = colors.cursor })
+  end
+
+  if colors.selection_background then
+    vim.api.nvim_set_hl(0, "SimpleTerminalSelection", {
+      fg = colors.selection_foreground,
+      bg = colors.selection_background,
+    })
+  end
+end
+
+---'winhighlight' scoping the groups above to our window, so the rest of the
+---editor keeps the active colorscheme.
+---@return string
+local function window_highlight()
+  local colors = M.config.colors
+  if not colors then
+    return ""
+  end
+
+  local parts = {
+    "NormalFloat:SimpleTerminalNormal",
+    "FloatBorder:SimpleTerminalBorder",
+    "FloatTitle:SimpleTerminalTitle",
+  }
+  if colors.cursor then
+    table.insert(parts, "TermCursor:SimpleTerminalCursor")
+  end
+  if colors.selection_background then
+    table.insert(parts, "Visual:SimpleTerminalSelection")
+  end
+
+  return table.concat(parts, ",")
+end
+
+-- Set while our own `:terminal` is starting, so the TermOpen handler below can
+-- tell our terminal apart from any other one the user opens.
+local palette_pending = false
+
+---`b:terminal_color_x` is read during |TermOpen|, and neither it nor a
+---buffer-local autocommand survives the scratch buffer being converted into a
+---terminal. So the palette has to be set from a global TermOpen handler, kept
+---buffer-local there to stay off every other terminal.
+vim.api.nvim_create_autocmd("TermOpen", {
+  group = augroup,
+  desc = "Apply the simpleterminal ANSI palette",
+  callback = function(ev)
+    if not palette_pending then
+      return
+    end
+    palette_pending = false
+
+    local colors = M.config.colors
+    if not colors or not colors.palette then
+      return
+    end
+
+    for index, color in pairs(colors.palette) do
+      vim.b[ev.buf]["terminal_color_" .. index] = color
+    end
+  end,
+})
+
 ---A centered window configuration for the current screen size.
 ---@return vim.api.keyset.win_config
 local function win_config()
@@ -83,6 +165,8 @@ end
 
 ---Start the shell in the current window and adopt the resulting buffer.
 local function start_terminal()
+  palette_pending = true
+
   if M.config.cmd then
     vim.cmd.terminal(M.config.cmd)
   else
@@ -123,6 +207,7 @@ function M.open()
       state.buf = vim.api.nvim_create_buf(false, true)
     end
     state.win = vim.api.nvim_open_win(state.buf, true, win_config())
+    vim.wo[state.win].winhighlight = window_highlight()
   end
 
   if vim.bo[state.buf].buftype ~= "terminal" then
@@ -162,10 +247,23 @@ end
 function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
 
+  define_highlights()
+
+  if M.config.colors and not vim.o.termguicolors then
+    vim.notify("simpleterminal: colors need 'termguicolors'", vim.log.levels.WARN)
+  end
+
   if type(M.config.keymap) == "string" then
     vim.keymap.set("n", M.config.keymap, M.toggle, { desc = "Toggle floating terminal" })
   end
 end
+
+-- `:colorscheme` clears user-defined highlight groups, so put ours back.
+vim.api.nvim_create_autocmd("ColorScheme", {
+  group = augroup,
+  desc = "Redefine the simpleterminal highlight groups",
+  callback = define_highlights,
+})
 
 -- Keep the window centered and proportional when the editor is resized.
 vim.api.nvim_create_autocmd("VimResized", {

@@ -6,8 +6,9 @@ CONTENTS                                            *simpleterminal-contents*
     1. Introduction .......................... |simpleterminal-introduction|
     2. Setup ................................. |simpleterminal-setup|
     3. Configuration ......................... |simpleterminal-configuration|
-    4. Commands .............................. |simpleterminal-commands|
-    5. Lua API ............................... |simpleterminal-api|
+    4. Colors ................................ |simpleterminal-colors|
+    5. Commands .............................. |simpleterminal-commands|
+    6. Lua API ............................... |simpleterminal-api|
 
 ==============================================================================
 1. INTRODUCTION                                 *simpleterminal-introduction*
@@ -44,6 +45,7 @@ Defaults: >lua
       cmd = nil,
       start_insert = true,
       close_on_exit = true,
+      colors = nil,
       keymap = false,
     }
 <
@@ -82,6 +84,11 @@ close_on_exit ~
         buffer, so the next open starts a fresh shell. With false the buffer
         is kept and shows the usual "[Process exited]" message.
 
+                                                  *simpleterminal-colors-opt*
+colors ~
+        A table of colors for this terminal only, or nil to follow the active
+        colorscheme. See |simpleterminal-colors|.
+
                                                   *simpleterminal-keymap*
 keymap ~
         A normal-mode left-hand side that |simpleterminal.setup()| maps to
@@ -90,7 +97,66 @@ keymap ~
         a string.
 
 ==============================================================================
-4. COMMANDS                                         *simpleterminal-commands*
+4. COLORS                                             *simpleterminal-colors*
+
+The `colors` option paints only this terminal; the rest of the editor keeps
+the active colorscheme.
+
+Requires 'termguicolors'. |simpleterminal.setup()| warns when it is off.
+
+                                                  *simpleterminal.ghostty*
+A Ghostty theme file can be read directly: >lua
+
+    require("simpleterminal").setup({
+      colors = require("simpleterminal.ghostty").load(
+        "~/.config/ghostty/themes/mytheme"
+      ),
+    })
+<
+A full ghostty config works too; non-color keys are ignored. The keys read are
+`palette = N=#rrggbb` (N from 0 to 15), `background`, `foreground`,
+`cursor-color`, `cursor-text`, `selection-background` and
+`selection-foreground`. Values may omit the leading "#".
+
+`ghostty.load()` reports a missing file with |vim.notify()| and returns nil,
+which is the same as not setting `colors`. `ghostty.parse()` returns
+`nil, err` instead, for callers that want to handle it.
+
+The table can also be written by hand: >lua
+
+    colors = {
+      palette = { [1] = "#c01c28", [4] = "#1e78e4" },
+      background = "#1c1c1f",
+      foreground = "#ffffff",
+      cursor = "#ffffff",
+      cursor_text = "#1c1c1f",
+      selection_background = "#ffffff",
+      selection_foreground = "#1c1c1f",
+    }
+<
+Every field is optional and `palette` may be sparse.
+
+                                            *simpleterminal-highlight-groups*
+How it is scoped ~
+
+The 16 ANSI colors are set as buffer-local |b:terminal_color_x| from a
+|TermOpen| handler, so no other terminal buffer is touched. The window colors
+are applied with 'winhighlight' onto these groups:
+
+    SimpleTerminalNormal        text and background (from NormalFloat)
+    SimpleTerminalBorder        border, fg from palette 8 when present
+    SimpleTerminalTitle         window title
+    SimpleTerminalCursor        block cursor (from |hl-TermCursor|)
+    SimpleTerminalSelection     visual selection (from |hl-Visual|)
+
+They are redefined on |ColorScheme|, which would otherwise clear them, and you
+can override any of them yourself after |simpleterminal.setup()|.
+
+Note that `cursor-text` is the glyph under the block cursor. A theme that sets
+it to the same color as `cursor-color` renders that glyph invisible.
+
+==============================================================================
+5. COMMANDS                                         *simpleterminal-commands*
 
                                                               *:SimpleTerminal*
 :SimpleTerminal [action]
@@ -98,7 +164,7 @@ keymap ~
         Completion offers the three names.
 
 ==============================================================================
-5. LUA API                                               *simpleterminal-api*
+6. LUA API                                               *simpleterminal-api*
 
                                                     *simpleterminal.setup()*
 require("simpleterminal").setup({opts})

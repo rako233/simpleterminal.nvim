@@ -55,9 +55,47 @@ require("simpleterminal").setup({
   cmd = nil,            -- command to run; nil means 'shell'
   start_insert = true,  -- enter terminal-mode on open
   close_on_exit = true, -- on `exit`, close the window and start fresh next time
+  colors = nil,         -- colors for this terminal only; nil follows the colorscheme
   keymap = false,       -- lhs for toggle(), created by setup() only
 })
 ```
+
+## Colors
+
+`colors` paints only this terminal, leaving the rest of the editor on your
+colorscheme. It takes a Ghostty theme, read straight from the file:
+
+```lua
+require("simpleterminal").setup({
+  colors = require("simpleterminal.ghostty").load("~/.config/ghostty/themes/mytheme"),
+})
+```
+
+A full `ghostty/config` works too — non-color keys are ignored. The keys read
+are `palette = N=#rrggbb` (0-15), `background`, `foreground`, `cursor-color`,
+`cursor-text`, `selection-background` and `selection-foreground`.
+
+Or hand it a table directly:
+
+```lua
+colors = {
+  palette = { [1] = "#c01c28", [4] = "#1e78e4" },  -- sparse is fine
+  background = "#1c1c1f",
+  foreground = "#ffffff",
+  cursor = "#ffffff",
+  cursor_text = "#1c1c1f",
+  selection_background = "#ffffff",
+  selection_foreground = "#1c1c1f",
+}
+```
+
+Scoping: the 16 ANSI colors are set as buffer-local `b:terminal_color_x`, and
+the window colors go through `'winhighlight'`, so no other terminal or window
+is affected. Needs `'termguicolors'`; `setup()` warns if it is off.
+
+The highlight groups are `SimpleTerminalNormal`, `SimpleTerminalBorder`,
+`SimpleTerminalTitle`, `SimpleTerminalCursor` and `SimpleTerminalSelection`,
+redefined after `:colorscheme`, so you can override them yourself.
 
 The plugin never maps a key on its own — only `setup()` does, and only when
 `keymap` is a string.
